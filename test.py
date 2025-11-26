@@ -108,6 +108,13 @@ def main():
         help="Base name of the image to visualize (without extension).",
     )
     parser.add_argument(
+        "--split",
+        type=str,
+        default="test",
+        choices=["train", "val", "test"],
+        help="Dataset split to draw the image from.",
+    )
+    parser.add_argument(
         "--max_examples",
         type=int,
         default=8,
@@ -122,25 +129,30 @@ def main():
     model.eval()
     model.to(device)
 
-    # Set up data module and get test dataset
+    # Set up data module and select the requested split
     datamodule = PotholesDataModule(data_dir="potholes", batch_size=64, num_workers=0)
-    datamodule.setup(stage="test")
-    test_ds = datamodule.test_dataset
+    datamodule.setup(stage=None)
+    if args.split == "train":
+        dataset = datamodule.train_dataset
+    elif args.split == "val":
+        dataset = datamodule.val_dataset
+    else:
+        dataset = datamodule.test_dataset
 
     # Collect indices for the requested image_id
-    origins: List[str] = test_ds.origins
+    origins: List[str] = dataset.origins
     idxs = [i for i, o in enumerate(origins) if o == args.image_id]
     if not idxs:
         raise RuntimeError(
-            f"No crops found for image_id='{args.image_id}' in test split."
+            f"No crops found for image_id='{args.image_id}' in {args.split} split."
         )
 
     # Stack all crops from this image
-    images = torch.stack([test_ds.images[i] for i in idxs], dim=0).to(device)
+    images = torch.stack([dataset.images[i] for i in idxs], dim=0).to(device)
     labels = torch.tensor(
-        [test_ds.labels[i] for i in idxs], dtype=torch.long, device=device
+        [dataset.labels[i] for i in idxs], dtype=torch.long, device=device
     )
-    boxes = torch.stack([test_ds.boxes[i] for i in idxs], dim=0)
+    boxes = torch.stack([dataset.boxes[i] for i in idxs], dim=0)
 
     # Run model
     with torch.no_grad():

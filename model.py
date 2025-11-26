@@ -13,7 +13,7 @@ class ImageNetLightningModel(LightningModule):
 
     def __init__(
         self,
-        num_classes: int = 1000,
+        num_classes: int = 2,
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         pretrained: bool = True,
@@ -33,7 +33,7 @@ class ImageNetLightningModel(LightningModule):
         return self.model(x)
 
     def _shared_step(self, batch, stage: str):
-        images, targets = batch
+        images, targets, origins, boxes = batch
         logits = self(images)
         loss = self.criterion(logits, targets)
         preds = logits.argmax(dim=1)

@@ -11,7 +11,7 @@ def main():
     data_dir = "potholes"
     datamodule = PotholesDataModule(data_dir=data_dir, batch_size=64)
 
-    model = ImageNetLightningModel(num_classes=1000, lr=1e-3, pretrained=True)
+    model = ImageNetLightningModel(num_classes=2, lr=1e-3, pretrained=True)
 
     trainer = Trainer(
         max_epochs=10,

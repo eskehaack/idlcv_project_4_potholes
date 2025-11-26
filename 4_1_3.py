@@ -85,10 +85,11 @@ def evaluate_proposals(
 
 
 def main():
-    evaluate_proposals()
+    if "magnus" not in os.getcwd():
+        evaluate_proposals(annotations_dir="/dtu/datasets1/02516/potholes/annotations")
+    else:
+        evaluate_proposals()
 
 
 if __name__ == "__main__":
     main()
-
-

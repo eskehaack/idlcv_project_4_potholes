@@ -78,6 +78,7 @@ def demo_nms_with_xml(annotation_path=None):
         # Apply NMS to image from XML annotation
         kept_boxes, keep_indices = apply_nms_to_image(
             annotation_path, 
+            images_dir="potholes/images",
             iou_threshold=0.5,
             save_path="nms_result.png"
         )
@@ -105,6 +106,70 @@ def demo_synthetic_image():
         print(f"Error in synthetic demo: {e}")
 
 
+def demo_nms_with_npy(npy_path, images_dir="potholes/images"):
+    """
+    Demonstrate NMS with proposals from .npy file.
+    """
+    print("\n" + "="*50)
+    print("DEMO 4: NMS with .npy proposals")
+    print("="*50)
+    
+    if not os.path.exists(npy_path):
+        print(f"Proposals file not found: {npy_path}")
+        return
+
+    try:
+        # Load proposals
+        boxes = np.load(npy_path)
+        print(f"Loaded {len(boxes)} proposals from {npy_path}")
+        
+        # Infer image path
+        # filename is like "potholes0_props.npy" -> image is "potholes0.png"
+        basename = os.path.basename(npy_path)
+        # Try to find the matching image
+        # Strategy 1: Replace _props.npy with .png
+        image_name = basename.replace("_props.npy", ".png")
+        image_path = os.path.join(images_dir, image_name)
+        
+        if not os.path.exists(image_path):
+             # Strategy 2: Just take the part before the first underscore if it looks like potholesX
+             prefix = basename.split('_')[0] 
+             image_name = prefix + ".png"
+             image_path = os.path.join(images_dir, image_name)
+        
+        if not os.path.exists(image_path):
+            print(f"Image file not found: {image_path}")
+            print(f"Searched for: {image_name} in {images_dir}")
+            return
+            
+        # Load image
+        import cv2
+        image = cv2.imread(image_path)
+        if image is None:
+            print(f"Failed to load image: {image_path}")
+            return
+            
+        # Generate dummy scores
+        # Random scores between 0.0 and 1.0
+        scores = np.random.uniform(0.0, 1.0, size=len(boxes))
+        
+        # Apply NMS
+        kept_boxes, keep_indices = apply_nms_with_custom_boxes(
+            image, boxes, scores, iou_threshold=0.1, title_prefix="NPY Proposals"
+        )
+        
+        print(f"Original boxes: {len(boxes)}")
+        print(f"Boxes after NMS: {len(kept_boxes)}")
+        print(f"Removed boxes: {len(boxes) - len(kept_boxes)}")
+        
+        print(f"Successfully applied NMS to {npy_path}")
+        
+    except Exception as e:
+        print(f"Error processing .npy file: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     """
     Main function to run all NMS demonstrations.
@@ -113,15 +178,19 @@ def main():
     print("========================================")
     
     # Demo 1: Basic NMS functionality
-    demo_nms_basic()
+    # demo_nms_basic()
     
     # Demo 2: NMS with XML (if available)
     # You can modify this path to point to your actual XML annotation files
-    xml_path = None  # Set to actual path if you have XML annotations
-    demo_nms_with_xml(xml_path)
+    # xml_path = "potholes/annotations/potholes0.xml"  # Set to actual path if you have XML annotations
+    # demo_nms_with_xml(xml_path)
     
     # Demo 3: NMS with synthetic image (visual demonstration)
-    demo_synthetic_image()
+    # demo_synthetic_image()
+    
+    # Demo 4: NMS with .npy proposals
+    npy_path = "P4_1/labeled_proposals/potholes0_props.npy"
+    demo_nms_with_npy(npy_path)
     
     print("\n" + "="*50)
     print("All NMS demos completed!")

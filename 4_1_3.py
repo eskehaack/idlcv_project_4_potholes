@@ -4,13 +4,13 @@ import os
 import numpy as np
 from tqdm import tqdm
 from utils.read_xml import read_content
-from utils.iou import evaluate_single_image
+from utils.iou import evaluate_single_image, mabo_from_best_ious
 
 
 def evaluate_proposals(
     annotations_dir="potholes/annotations",
     proposals_dir="P4_1/proposals",
-    test_proposals=(100, 200, 500, 1000, 1500, 2000, 3000),
+    test_proposals=(100, 200, 300,400,500, 1000, 1500, 2000, 3000),
     iou_threshold=0.5,
 ):
     """
@@ -31,11 +31,12 @@ def evaluate_proposals(
     if not ann_files:
         raise RuntimeError(f"No annotation XML files found in '{annotations_dir}'.")
 
-    # For each N we will accumulate mean IoU and recall over all images
+    # For each N we will accumulate mean IoU, recall and all best-IoUs (for MABO)
     stats = {
         N: {
-            "mean_best_ious": [],
-            "recall": [],
+            "mean_best_ious": [],  # per-image mean
+            "recall": [],          # per-image recall
+            "all_best_ious": [],   # per-GT best IoUs for MABO
         }
         for N in test_proposals
     }
@@ -62,6 +63,8 @@ def evaluate_proposals(
         for N in test_proposals:
             stats[N]["mean_best_ious"].append(img_results[N]["mean_best_iou"])
             stats[N]["recall"].append(img_results[N]["recall"])
+            # extend with this image's best IoU for every GT box
+            stats[N]["all_best_ious"].extend(img_results[N]["best_ious"])
 
     print("Evaluation over dataset")
     print(f"(IoU threshold = {iou_threshold})")
@@ -72,10 +75,12 @@ def evaluate_proposals(
 
         mean_iou = np.mean(stats[N]["mean_best_ious"])
         mean_recall = np.mean(stats[N]["recall"])
+        mabo = mabo_from_best_ious(stats[N]["all_best_ious"])
         print(
             f"Proposals: {N:4d} | "
             f"Mean best IoU (GT vs props): {mean_iou:.3f} | "
-            f"Recall (IoU ≥ {iou_threshold:.2f}): {mean_recall:.3f}"
+            f"Recall (IoU ≥ {iou_threshold:.2f}): {mean_recall:.3f} | "
+            f"MABO: {mabo:.3f}"
         )
 
 

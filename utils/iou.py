@@ -90,7 +90,7 @@ def evaluate_single_image(gt_boxes, prop_boxes, test_proposals, iou_threshold=0.
     Returns
     -------
     dict
-        {N: {"mean_best_iou": float, "recall": float}} for each N in test_proposals.
+        {N: {"mean_best_iou": float, "recall": float, "best_ious": np.ndarray}} for each N in test_proposals.
     """
     results = {}
 
@@ -104,6 +104,20 @@ def evaluate_single_image(gt_boxes, prop_boxes, test_proposals, iou_threshold=0.
         results[N] = {
             "mean_best_iou": mean_best_iou,
             "recall": recall,
+            "best_ious": best_ious,
         }
 
     return results
+
+
+def mabo_from_best_ious(best_ious_per_gt):
+    """
+    Compute MABO (Mean Average Best Overlap) for a single class,
+    given best IoU per ground-truth box across proposals.
+
+    For this exercise we have one class (pothole), so MABO reduces
+    to the mean of best IoUs over all GT boxes in the dataset.
+    """
+    if len(best_ious_per_gt) == 0:
+        return 0.0
+    return float(np.mean(best_ious_per_gt))

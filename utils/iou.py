@@ -70,3 +70,40 @@ def test_boxes(annotation, test_proposals=[100, 200, 500, 1000, 1500, 2000, 3000
     for N in test_proposals:
         _, best_iou = compute_iou_matrix(gt_boxes, prop_boxes[:N])
         print(f"Proposals: {N:4d} | Mean best IoU: {best_iou.mean():.3f}")
+
+
+def evaluate_single_image(gt_boxes, prop_boxes, test_proposals, iou_threshold=0.5):
+    """
+    Evaluate proposals for a single image.
+
+    Parameters
+    ----------
+    gt_boxes : array-like of shape (G, 4)
+        Ground-truth boxes [xmin, ymin, xmax, ymax].
+    prop_boxes : array-like of shape (P, 4)
+        Proposal boxes [xmin, ymin, xmax, ymax].
+    test_proposals : iterable of int
+        Different numbers of top proposals N to evaluate.
+    iou_threshold : float
+        IoU threshold for counting a GT box as "covered".
+
+    Returns
+    -------
+    dict
+        {N: {"mean_best_iou": float, "recall": float}} for each N in test_proposals.
+    """
+    results = {}
+
+    for N in test_proposals:
+        cur_props = prop_boxes[:N]
+        _, best_ious = compute_iou_matrix(gt_boxes, cur_props)
+
+        mean_best_iou = best_ious.mean() if len(best_ious) > 0 else 0.0
+        recall = (best_ious >= iou_threshold).mean() if len(best_ious) > 0 else 0.0
+
+        results[N] = {
+            "mean_best_iou": mean_best_iou,
+            "recall": recall,
+        }
+
+    return results

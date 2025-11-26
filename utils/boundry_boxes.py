@@ -1,17 +1,28 @@
+import os
 import cv2
 import matplotlib.pyplot as plt
 from utils.read_xml import read_content
 
-def draw_boxes_on_image(annotation, color=(0, 0, 0), thickness=1, figsize=(12, 8), show=True, save_path=None):
+def draw_boxes_on_image(
+    annotation,
+    images_dir="/dtu/datasets1/02516/potholes/images",
+    color=(0, 0, 0),
+    thickness=1,
+    figsize=(12, 8),
+    show=True,
+    save_path=None,
+):
     """
     annotation: path to the XML annotation file
+    images_dir: directory where the corresponding images are stored
     """
 
     name, boxes = read_content(annotation)
 
-    img = cv2.imread(f"/dtu/datasets1/02516/potholes/images/{name}")
+    img_path = os.path.join(images_dir, name)
+    img = cv2.imread(img_path)
     if img is None:
-        raise RuntimeError(f"cv2 failed to read image at {name}")
+        raise RuntimeError(f"cv2 failed to read image at {img_path}")
 
     img_draw = img.copy()
     for i, box in enumerate(boxes):

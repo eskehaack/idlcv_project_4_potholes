@@ -12,7 +12,7 @@ def build_labeled_proposals(
     annotations_dir="potholes/annotations",
     proposals_dir="P4_1/proposals",
     output_dir="P4_1/labeled_proposals",
-    num_proposals=500,
+    num_proposals=2000,
     pos_iou_thr=0.5,
     neg_iou_thr=0.3,
 ):
@@ -21,7 +21,7 @@ def build_labeled_proposals(
 
     For each image:
       - Load its region proposals (rects) from `proposals_dir`.
-      - Keep the first `num_proposals`.
+      - Keep the first `num_proposals` (default: 2000).
       - Convert rects (x, y, w, h) -> boxes [xmin, ymin, xmax, ymax].
       - Compute IoU with GT boxes and assign labels:
           1 = foreground (IoU >= pos_iou_thr)

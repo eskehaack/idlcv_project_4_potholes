@@ -23,7 +23,7 @@ def main(output_dir="P4_1/proposals", max_images=None, visualize_first=1):
     os.makedirs(output_dir, exist_ok=True)
 
     image_dir = os.path.join("potholes", "images")
-    if "magnus" not in os.getcwd():
+    if "Magnus" not in os.getcwd():
         image_files = sorted(glob.glob("/dtu/datasets1/02516/potholes/images/**"))
     else:
         image_files = sorted(glob.glob(os.path.join(image_dir, "*.png")))

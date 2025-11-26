@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.patches import Rectangle
+from tqdm import tqdm
 
 from dataloader import PotholesDataModule
 from model import ImageNetLightningModel
@@ -104,8 +105,9 @@ def main():
     parser.add_argument(
         "--image_id",
         type=str,
-        default="potholes1",
-        help="Base name of the image to visualize (without extension).",
+        default=None,
+        help="Base name of the image to visualize (without extension). "
+        "If not provided, uses the first image in the split.",
     )
     parser.add_argument(
         "--split",
@@ -120,6 +122,12 @@ def main():
         default=8,
         help="Maximum number of crop examples to show.",
     )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=128,
+        help="Batch size for inference.",
+    )
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,8 +138,11 @@ def main():
     model.to(device)
 
     # Set up data module and select the requested split
-    datamodule = PotholesDataModule(data_dir="potholes", batch_size=64, num_workers=0)
+    datamodule = PotholesDataModule(
+        data_dir="potholes", batch_size=args.batch_size, num_workers=0
+    )
     datamodule.setup(stage=None)
+
     if args.split == "train":
         dataset = datamodule.train_dataset
     elif args.split == "val":
@@ -139,31 +150,80 @@ def main():
     else:
         dataset = datamodule.test_dataset
 
+    # The new dataset stores samples as a list of dicts
+    samples = dataset.samples
+
+    # Determine which image_id to use
+    if args.image_id is None:
+        # Use the first image in the split
+        args.image_id = samples[0]["origin"]
+        print(f"No --image_id provided, using first image: {args.image_id}")
+
     # Collect indices for the requested image_id
-    origins: List[str] = dataset.origins
-    idxs = [i for i, o in enumerate(origins) if o == args.image_id]
+    idxs = [i for i, s in enumerate(samples) if s["origin"] == args.image_id]
     if not idxs:
+        # List available image IDs
+        available = sorted(set(s["origin"] for s in samples))
         raise RuntimeError(
-            f"No crops found for image_id='{args.image_id}' in {args.split} split."
+            f"No crops found for image_id='{args.image_id}' in {args.split} split.\n"
+            f"Available images: {available[:10]}{'...' if len(available) > 10 else ''}"
         )
 
-    # Stack all crops from this image
-    images = torch.stack([dataset.images[i] for i in idxs], dim=0).to(device)
-    labels = torch.tensor(
-        [dataset.labels[i] for i in idxs], dtype=torch.long, device=device
-    )
-    boxes = torch.stack([dataset.boxes[i] for i in idxs], dim=0)
+    print(f"Found {len(idxs)} crops for image '{args.image_id}'")
 
-    # Run model
-    with torch.no_grad():
-        logits = model(images)
-        preds = logits.argmax(dim=1).cpu()
+    # Load crops on-the-fly and run inference in batches
+    all_images = []
+    all_labels = []
+    all_boxes = []
+    all_preds = []
+
+    for batch_start in tqdm(
+        range(0, len(idxs), args.batch_size), desc="Running inference"
+    ):
+        batch_idxs = idxs[batch_start : batch_start + args.batch_size]
+
+        batch_images = []
+        batch_labels = []
+        batch_boxes = []
+
+        for idx in batch_idxs:
+            image, label, origin, box = dataset[idx]
+            batch_images.append(image)
+            batch_labels.append(label)
+            batch_boxes.append(box)
+
+        images_tensor = torch.stack(batch_images, dim=0).to(device)
+        labels_tensor = torch.stack(batch_labels, dim=0)
+        boxes_tensor = torch.stack(batch_boxes, dim=0)
+
+        with torch.no_grad():
+            logits = model(images_tensor)
+            preds = logits.argmax(dim=1).cpu()
+
+        all_images.append(images_tensor.cpu())
+        all_labels.append(labels_tensor)
+        all_boxes.append(boxes_tensor)
+        all_preds.append(preds)
+
+    # Concatenate all batches
+    all_images = torch.cat(all_images, dim=0)
+    all_labels = torch.cat(all_labels, dim=0)
+    all_boxes = torch.cat(all_boxes, dim=0)
+    all_preds = torch.cat(all_preds, dim=0)
+
+    # Print summary
+    n_fg_pred = (all_preds == 1).sum().item()
+    n_fg_gt = (all_labels == 1).sum().item()
+    print(
+        f"Predictions: {n_fg_pred} foreground, {len(all_preds) - n_fg_pred} background"
+    )
+    print(f"Ground truth: {n_fg_gt} foreground, {len(all_labels) - n_fg_gt} background")
 
     # Visualize some sample crops with predictions vs ground truth
-    visualize_crops(images.cpu(), preds, labels.cpu(), max_examples=args.max_examples)
+    visualize_crops(all_images, all_preds, all_labels, max_examples=args.max_examples)
 
     # Visualize foreground boxes on the original image
-    visualize_foreground_boxes(args.image_id, boxes, preds)
+    visualize_foreground_boxes(args.image_id, all_boxes, all_preds)
 
 
 if __name__ == "__main__":

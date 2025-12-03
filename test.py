@@ -50,6 +50,7 @@ def visualize_crops(
         plt.axis("off")
     plt.tight_layout()
     plt.show()
+    plt.savefig("crops_visualization.png")
 
 
 def visualize_foreground_boxes(
@@ -90,6 +91,7 @@ def visualize_foreground_boxes(
     plt.title(f"Foreground proposals for {origin}")
     plt.axis("off")
     plt.show()
+    plt.savefig("foreground_boxes_visualization.png")
 
 
 def main():
@@ -127,6 +129,12 @@ def main():
         type=int,
         default=128,
         help="Batch size for inference.",
+    )
+    parser.add_argument(
+        "--images-dir",
+        type=str,
+        default="/dtu/datasets1/02516/potholes/images/",
+        help="Directory for image files",
     )
     args = parser.parse_args()
 
@@ -223,7 +231,7 @@ def main():
     visualize_crops(all_images, all_preds, all_labels, max_examples=args.max_examples)
 
     # Visualize foreground boxes on the original image
-    visualize_foreground_boxes(args.image_id, all_boxes, all_preds)
+    visualize_foreground_boxes(args.image_id, all_boxes, all_preds, args.images_dir)
 
 
 if __name__ == "__main__":

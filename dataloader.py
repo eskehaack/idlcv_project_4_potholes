@@ -177,7 +177,8 @@ class PotholesDataModule(LightningDataModule):
             samples = []
 
             for base in tqdm(base_list, desc="Building index"):
-                img_path = os.path.join("potholes", "images", f"{base}.png")
+                # img_path = os.path.join("potholes", "images", f"{base}.png")
+                img_path = os.path.join(f"/dtu/datasets1/02516/potholes/images/{base}.png")
                 if not os.path.exists(img_path):
                     print(f"Warning: image not found: {img_path}")
                     continue
